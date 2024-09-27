@@ -18,6 +18,10 @@ def create_app():
     migrate = Migrate(app, db)
     socketio.init_app(app, cors_allowed_origins="*")
 
+    # Import and register the routes (blueprints)
+    from app.sessions.routes import sessions as sessions_blueprint
+    app.register_blueprint(sessions_blueprint)
+
     @app.route('/')
     def get_index():
         return render_template("index.html")
