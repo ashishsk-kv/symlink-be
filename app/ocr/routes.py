@@ -31,3 +31,8 @@ def upload_pdf():
         return jsonify({"extracted_text": extracted_text})
     else:
         return jsonify({"error": "invalid file type."}), 400
+
+
+def extract_text(filepath):
+    extracted_text = extract_text_from_pdf(filepath)
+    return {"extracted_text": extracted_text}
