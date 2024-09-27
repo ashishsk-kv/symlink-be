@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 from app.sessions.model import Sessions
+from app.chats.model import Chats
+from app.configurations.model import Configurations
 from app import db
 import hashlib
 
@@ -30,18 +32,33 @@ def create_sessions():
     if not email:
         return jsonify({'error': 'Email is required'}), 400
 
+    id = None
+    session = None
     # Check if the email already exists
     existing_user = Sessions.query.filter_by(email=email).first()
     if existing_user:
-        return jsonify({'error': 'Email already exists'}), 400
-
+        id = existing_user.id
+        session = existing_user
     # Create a new user
-    id = hash_email(email=email)
-    new_session = Sessions(id=id, email=email)
-    db.session.add(new_session)
+    else:
+        id = hash_email(email=email)
+        new_session = Sessions(id=id, email=email)
+        db.session.add(new_session)
+        db.session.commit()
+        session = new_session
+
+    conf = Configurations.query.first()
+
+    chat = Chats(session_id=id, model_name=conf.model_name)
+    db.session.add(chat)
     db.session.commit()
 
-    return jsonify(new_session.to_dict()), 201
+    resp = {
+        'chat': chat.to_dict(),
+        'session': session.to_dict(),
+    }
+
+    return jsonify(resp), 201
 
 @sessions.route('/sessions', methods=['GET'])
 def get_sessions():

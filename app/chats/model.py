@@ -5,10 +5,10 @@ class Chats(db.Model):
     __tablename__ = 'chats'
 
     id = db.Column(db.Integer, db.Sequence('seq_chat_id', start=1, increment=1), primary_key=True)
-    title = db.Column(db.String, nullable=False)
+    title = db.Column(db.String, nullable=True)
     session_id = db.Column(db.String, db.ForeignKey('sessions.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
-    model_name = db.Column(db.String, db.ForeignKey('configurations.model_name'), nullable=False)
+    model_name = db.Column(db.String, db.ForeignKey('configurations.model_name'), nullable=True)
 
     def __repr__(self):
         return f"<Chats {self.id}>"

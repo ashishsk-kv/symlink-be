@@ -6,7 +6,7 @@ client = OpenAI(
     api_key='<key>',
 )
 
-def query_chatgpt(prompt, model="gpt-4", max_tokens=500, temperature=0.7):
+def query_chatgpt(prompt, model="chatgpt-4o-latest", max_tokens=500, temperature=0.7):
     """
     Query ChatGPT using the OpenAI API.
 
