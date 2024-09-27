@@ -154,7 +154,13 @@ def handle_send_message(data):
     db.session.add(message)
     db.session.commit()
 
-    emit('receive_message', message.to_dict(), broadcast=True)
+    res = {
+        'message': message_text, 
+        'masked_text': masked_text, 
+        'mapped_entity': mapped_entity
+    }
+
+    emit('review_file', res, broadcast=True)
 
 
 @socketio.on('review_message')
