@@ -55,7 +55,7 @@ def review_message():
     'masked_text': masked_text, 
     'mapped_entity': mapped_entity
     }
-
+    emit('receive_message', res, broadcast=True)
     return jsonify(res), 201
 
 @socketio.on('send_message')
