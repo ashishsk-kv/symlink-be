@@ -8,7 +8,7 @@ from app.ner.ner_prediction import get_prediction
 from app.utils import map_keys, reverse_map
 from app.llms import openai_util
 from app.ocr.routes import extract_text
-import os
+import os, json
 
 # Define a blueprint for the routes
 messages = Blueprint('messages', __name__)
@@ -53,9 +53,11 @@ def review_message():
     db.session.add(message)
     db.session.commit()
     res = {
-    'message': message_text, 
-    'masked_text': masked_text, 
-    'mapped_entity': mapped_entity
+        'message': message_text, 
+        'masked_text': masked_text, 
+        'mapped_entity': mapped_entity,
+        'message_id': message.id,
+        'chat_id': chat.id
     }
     # emit('receive_message', res, broadcast=True)
     return jsonify(res), 201
@@ -148,16 +150,18 @@ def handle_send_message(data):
 
     # Create the message in the database
     message = Messages(chat_id=chat.id, content=message_text, direction='SENT', sent_by=user.id, documents=['uploads/'+str(filename)])
-    extracted_text = extract_text(filepath='uploads/'+str(filename))
+    extracted_text = extract_text(filepath='uploads/'+str(filename))['extracted_text']
     masked_text, mapped_entity = get_prediction(extracted_text)
     message.masked_content = masked_text
     db.session.add(message)
     db.session.commit()
 
     res = {
-        'message': message_text, 
+        'message': extracted_text,
         'masked_text': masked_text, 
-        'mapped_entity': mapped_entity
+        'mapped_entity': mapped_entity,
+        'message_id': message.id,
+        'chat_id': chat.id
     }
 
     emit('review_file', res, broadcast=True)
@@ -165,11 +169,11 @@ def handle_send_message(data):
 
 @socketio.on('review_message')
 def review_message(data):
-    print(f"Message received: {data.get('message')}")
+    print(f"Message received: {json.dumps(data)}")
     session_id = data.get('session_id')
     message_text = data.get('message')
     entity_map = data.get('entity_map')
-    message_id = data.get('id')
+    message_id = data.get('message_id')
     chat_id = data.get('chat_id')
 
     if not session_id or not message_text:
@@ -188,6 +192,8 @@ def review_message(data):
     message.masked_content = message_text
     db.session.commit()
 
+    emit('receive_message', message.to_dict(), broadcast=True)
+
     gpt_response = openai_util.query_chatgpt(message_text)
 
     final_output = reverse_map(gpt_response, entity_map)
@@ -202,6 +208,7 @@ def review_message(data):
 
 @socketio.on('get_history')
 def get_chat_history(data):
+    print(f"Get history message received: {json.dumps(data)}")
     chat_id = data.get('chat_id')
     session_id = data.get('session_id')
 
@@ -216,5 +223,7 @@ def get_chat_history(data):
     
     messages = Messages.query.filter_by(chat_id=chat.id).all()
     formatted_messages = [message.to_dict() for message in messages]
+
+    print(f"Formatted messages: {json.dumps(formatted_messages)}")
 
     emit('chat_history', formatted_messages, broadcast=True) 
