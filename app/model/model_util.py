@@ -1,5 +1,5 @@
 import ollama
-from config import llm_model_path, prompt
+from app.config import llm_model_path, prompt
 
 def query_model_using_ollama(prompt):
     try:
@@ -10,11 +10,24 @@ def query_model_using_ollama(prompt):
     except Exception as e:
         raise Exception(f"Failed to query model: Exception: {e}")
     
+def ollam_chat(prompt):
+    """
+    return the chats
+    """
+    print("querying ollana chat")
+    response = ollama.chat(model=llm_model_path, messages=[
+        {
+            'role': 'user',
+            'content': prompt,
+        },])
+    return response['message']['content']
+
 
 def query(user_prompt):
     try:
         final_prompt = prompt + user_prompt
-        result = query_model_using_ollama(final_prompt)
+        # result = query_model_using_ollama(final_prompt)
+        result = ollam_chat(final_prompt)
         return result
     except Exception as e:
         print(f"Excetption: {e}")

@@ -9,10 +9,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.urandom(24)  # Use a secure secret key for sessions
     UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER")
-
 # llm_model_path = "mistral:7b-instruct-v0.3-q8_0"
-llm_model_path = "llama3.1:8b-instruct-q8_0"
-# llm_model_path = "llama3.2:3b-instruct-q8_0"
+# llm_model_path = "llama3.1:8b-instruct-q8_0"
+llm_model_path = "ghost_ai:latest"
 faker_providers = {
     'ORG': 'fake.company()',            # Organization name
     'STREET': 'fake.street_address()',   # Street address
@@ -29,66 +28,41 @@ faker_providers = {
 }
 perssonal_info_ner = "iiiorg/piiranha-v1-detect-personal-information"
 org_loc_ner = 'dslim/bert-base-NER'
-ner_labels = [
-          'LOC', 'ORG', 'PER',
-          'ACCOUNTNUM', 
-          'CITY', 
-          'CREDITCARDNUMBER', 'DATEOFBIRTH', 'DRIVERLICENSENUM', 'EMAIL', 'GIVENNAME', 'IDCARDNUM', 'PASSWORD', 'SOCIALNUM', 'STREET', 'SURNAME', 'TAXNUM', 'TELEPHONENUM', 'USERNAME', 'ZIPCODE']
+# ner_labels = [
+#           'LOC', 'ORG', 'PER',
+#           'ACCOUNTNUM', 
+#           'CITY', 
+#           'CREDITCARDNUMBER', 'DATEOFBIRTH', 'DRIVERLICENSENUM', 'EMAIL', 'GIVENNAME', 'IDCARDNUM', 'PASSWORD', 'SOCIALNUM', 'STREET', 'SURNAME', 'TAXNUM', 'TELEPHONENUM', 'USERNAME', 'ZIPCODE']
+# ner_labels = ['ORG', 'PER', 'ACCOUNTNUM', 'CREDITCARDNUMBER',  'DRIVERLICENSENUM', 'EMAIL',  'IDCARDNUM',  'SOCIALNUM', 'STREET', 'TELEPHONENUM']
+meaningful_names = {
+    'ORG': 'Organization',
+    'PER': 'Person',
+    'ACCOUNTNUM': 'Account Number',
+    'CREDITCARDNUMBER': 'Credit Card Number',
+    'DRIVERLICENSENUM': 'Driver License Number',
+    'EMAIL': 'Email Address',
+    'IDCARDNUM': 'ID Card Number',
+    'SOCIALNUM': 'Social Security Number',
+    'STREET': 'Street Address',
+    'TELEPHONENUM': 'Telephone Number'
+}
+ner_labels = list(meaningful_names.keys())
+llm_labels = ", ".join(list(meaningful_names.values()))
 
-prompt_3 = """Identify and replace all entities in the following text that are either persons, institutions, or places with a unique identifier throughout the entire text. This includes replacing both the full entity name and any partial occurrences of the name (e.g., replacing "Micky Mouse" and "Micky" with the same identifier). The intent of the user must not be altered during this process. Do not add any additional notes to the message. Please ensure to mask every possible sensitive information that could lead to data leak. Steps: * Identify all entities in the text that are classified as 'Location', 'Organization', 'persons', 'account number', 'City', 'CREDITCARDNUMBER', 'DATEOFBIRTH', 'DRIVERLICENSENUM', 'EMAIL', 'IDCARDNUM', 'PASSWORD', 'SOCIALNUM', 'STREET', 'TAXNUM', 'TELEPHONENUM', 'USERNAME', 'ZIPCODE', 'PHONE_NUMBER', 'EMAIL_ADDRESS', and other information. * Assign a unique identifier to each entity while ensuring that the context and intent of the user are preserved. * Replace every occurrence of the full name and any partial name with the corresponding identifier in the text, making sure that the meaning remains clear. * Print the processed text with all entities replaced by their respective identifiers. Do NOT print the original text but only the processed version. * Provide a JSON-formatted list of all replaced entities as pairs, where each pair consists of the entity name and its corresponding identifier. Example, follow the format strictly: Original text: "Micky Mouse is a character created by Walt Disney. You can contact him at micky@example.com or (555) 123-4567 to discuss the project." Output: { "processed_text": "ENTITY1 is a character created by ENTITY2. You can contact him at ENTITY3 or ENTITY4 to discuss the project.", "entities": [ {"entity": "Micky Mouse", "identifier": "ENTITY1"}, {"entity": "Micky", "identifier": "ENTITY1"}, {"entity": "Walt Disney", "identifier": "ENTITY2"}, {"entity": "Walt", "identifier": "ENTITY2"}, {"entity": "micky@example.com", "identifier": "ENTITY3"}, {"entity": "(555) 123-4567", "identifier": "ENTITY4"} ] } Text to be formatted: """
-prompt = """Identify and replace all entities in the following text that are either
-                persons, institutions, or places with a unique identifier throughout the
-                entire text. This includes replacing both the full entity name and any
-                partial occurrences of the name (e.g., replacing "Micky Mouse" and "Micky"
-                with the same identifier). The intent of the user must not be altered during this process.
-                Do not add any additional notes to the message.
-                Steps:
-                    * Identify all entities in the text that are classified as 'Location', 'Organization', 'persons', 'account number', 'City', 'CREDITCARDNUMBER', 'DATEOFBIRTH', 'DRIVERLICENSENUM', 'EMAIL',  'IDCARDNUM', 'PASSWORD', 'SOCIALNUM', 'STREET',  'TAXNUM', 'TELEPHONENUM', 'USERNAME', 'ZIPCODE', 'PHONE_NUMBER', 'EMAIL_ADDRESS', and other sensitive information.
-                    * Mask sensitive information, such as account numbers and social security numbers.
-                    * Assign a unique identifier to each entity using the format Entity_A, Entity_B, Entity_C, etc., while ensuring that the context and intent of the user are preserved.
-                    * Replace every occurrence of the full name and any partial name with the corresponding identifier in the text, making sure that the meaning remains clear.
-                    * Print the processed text with all entities replaced by their respective identifiers. Do NOT print the original text but only the processed version.
-                    * Provide a JSON-formatted list of all replaced entities as pairs, where each pair consists of the entity name and its corresponding identifier.
-                Example, follow the format strictly:
-                    Original text: "Micky Mouse is a character created by Walt Disney. You can contact him at micky@example.com or (555) 123-4567 to discuss the project. His account number is 987654321."
-                    Output: {
-                        "processed_text": "Entity_A is a character created by Entity_B. You can contact him at Entity_C or Entity_D to discuss the project. His account number is [MASKED].",
-                        "entities": [
-                            {"entity": "Micky Mouse", "identifier": "Entity_A"},
-                            {"entity": "Micky", "identifier": "Entity_A"},
-                            {"entity": "Walt Disney", "identifier": "Entity_B"},
-                            {"entity": "Walt", "identifier": "Entity_B"},
-                            {"entity": "micky@example.com", "identifier": "Entity_C"},
-                            {"entity": "(555) 123-4567", "identifier": "Entity_D"},
-                            {"entity": "987654321", "identifier": "[MASKED]"}
-                        ]
-                    }
-                Text to be formatted: """
-prompt_2 = """Identify and replace all entities in the following text that are either 
-        persons, institutions, or places with a unique identifier throughout the 
-        entire text. This includes replacing both the full entity name and any 
-        partial occurrences of the name (e.g., replacing "Micky Mouse" and "Micky" 
-        with the same identifier). Do not add any additional notes to the message.
+prompt_pencil = """You need to perfom Named entity recognition to identify the PII information without considering the users prompt intent, no other details needed.
+Steps:
+* Identify all entities in the text that are sensitive information and add a very specific short description as shown in the example below. Also, if multiple instances of same category occurs use synonyms.
+Example, for the content: generate an ad for Nike Air Jordan, Output will be a python dictionary as follows {"Nike": "shoe company", "Air Jordan": "Basket Ball shoes"},
+Strictly follow the output signature, no other details needed, Text to be identified:
+"""
 
-        Steps:
+prompt_main = """You need to perfom Named entity recognition to identify the PII information without considering the users prompt intent, no other details needed.
+Steps:
+* Identify all entities in the text that are classified as Organization, Person, Account Number, Credit Card Number, Driver License Number, Email Address, ID Card Number, Social Security Number, Street Address and Telephone Number
+Example, for the content: Micky Mouse is a character created by Walt Disney. You can contact him at micky@example.com or (555) 123-4567 to discuss the project.  Output will be a python list as follows ['Micky Mouse', 'Walt Disney', 'micky@example.com', '(555) 123-4567', '987654321'],
+Strictly follow the output signature, no other details needed, Text to be identified:
+"""
 
-            * Identify all entities in the text that are classified as 'Location', 'Organization', 'persons', 'account number', 'City', 'CREDITCARDNUMBER', 'DATEOFBIRTH', 'DRIVERLICENSENUM', 'EMAIL',  'IDCARDNUM', 'PASSWORD', 'SOCIALNUM', 'STREET',  'TAXNUM', 'TELEPHONENUM', 'USERNAME', 'ZIPCODE' and other informations.
-            * Assign a unique identifier to each entity.
-            * Replace every occurrence of the full name and any partial name with the corresponding identifier in the text.
-            * Print the processed text with all entities replaced by their respective identifiers. Do NOT print the original text but only the processed version.
-            * Provide a JSON-formatted list of all replaced entities as pairs, where each pair consists of the entity name and its corresponding identifier.
-
-        Example, follow the format strictly:
-
-            Original text: "Micky Mouse is a character created by Walt Disney."
-            Output: {
-                "processed_text": "ENTITY1 is a character created by ENTITY2.",
-                "entities": [
-                    {"entity": "Micky Mouse", "identifier": "ENTITY1"},
-                    {"entity": "Micky", "identifier": "ENTITY1"},
-                    {"entity": "Walt Disney", "identifier": "ENTITY2"},
-                    {"entity": "Walt", "identifier": "ENTITY2"}
-                ]
-            }
-        
-        Text to be formatted: """
+demo_type = "PII-IDENTIFICATION"
+# demo_type = "PENCIL"
+prompt = prompt_pencil if demo_type == "PENCIL" else prompt_main

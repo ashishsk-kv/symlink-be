@@ -30,3 +30,14 @@ def clean_entity(text):
         return
     text = text.replace('#', '')
     return " ".join(text.split())
+
+def reverse_map_gpt_resp(gpt_txt, ner_entity_details):
+    for masked_tag, entity in ner_entity_details.items():
+        gpt_txt = gpt_txt.replace(masked_tag, entity)
+    return gpt_txt
+
+
+def mask_user_message(usr_text, ner_entity_details):
+    for masked_tag, entity in ner_entity_details.items():
+        usr_text = usr_text.replace(entity, masked_tag)
+    return usr_text

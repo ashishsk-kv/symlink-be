@@ -5,10 +5,14 @@ from flask_socketio import emit
 from app.sessions.model import Sessions
 from app.chats.model import Chats
 from app.ner.ner_prediction import get_prediction
-from app.utils import map_keys, reverse_map
+from app.utils import map_keys, reverse_map, clean_white_space, mask_user_message, reverse_map_gpt_resp
 from app.llms import openai_util
 from app.ocr.routes import extract_text
+from app.model import model_util
 import os, json
+from re import findall
+from app.config import demo_type
+from string import ascii_uppercase
 
 # Define a blueprint for the routes
 messages = Blueprint('messages', __name__)
@@ -92,18 +96,30 @@ def handle_send_message(data):
 
     # Create the message in the database
     message = Messages(chat_id=chat.id, content=message_text, direction='SENT', sent_by=user.id)
-    masked_text, mapped_entity = get_prediction(message_text)
-    message.masked_content = masked_text
     db.session.add(message)
     db.session.commit()
 
     emit('receive_message', message.to_dict(), broadcast=True)
-    
-    entity_key_map = map_keys(mapped_entity)
+    # masked_text, mapped_entity = get_prediction(message_text)
+    response = model_util.query(message_text)
+    print("raw response-:", response)
+    if demo_type == "PII-IDENTIFICATION":
+        pattern = r"'([^']+)'"
+        matches = findall(pattern, clean_white_space(response))
+        entity_details = {f"ENTITY_{alpha_id}": match for match, alpha_id in  zip(matches, list(ascii_uppercase))}
+    else:
+        json_response =  json.loads(response)
+        entity_details = {value: key for key, value in json_response.items()}
 
+    emit('receive_message', message.to_dict(), broadcast=True)
+
+    masked_text = mask_user_message(message_text, entity_details)
+    print("masked_text", masked_text) # PR_DELETE
+    created_message = Messages.query.filter_by(id=message.id).first()
+    created_message.masked_content = masked_text
+    db.session.commit()
     gpt_response = openai_util.query_chatgpt(masked_text)
-
-    final_output = reverse_map(gpt_response, entity_key_map)
+    final_output = reverse_map_gpt_resp(gpt_response, entity_details)
 
     reply = Messages(chat_id=chat.id, content=final_output, direction='RECEIVED', sent_by='MODEL')
     db.session.add(reply)
