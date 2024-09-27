@@ -18,6 +18,46 @@ def get_sessions(chat_id):
     messages = Messages.query.filter_by(chat_id=chat_id).all()
     return jsonify([message.to_dict() for message in messages])
 
+@messages.route('/messages/review_message', methods=['POST'])
+def review_message():
+    data = request.get_json()
+    session_id = data.get('session_id')
+    message_text = data.get('message')
+    chat_id = data.get('chat_id')
+    model_name = data.get('model_name')
+
+    if not message_text:
+        return jsonify({'error': 'original message is required'}), 400
+    
+    user = Sessions.query.filter_by(id=session_id).first()
+    
+    if not chat_id:
+        chat = Chats(session_id=user.id, model_name=model_name, title=message_text[:20])
+    else:
+        chat = Chats.query.filter_by(id=chat_id).first()
+        if not chat:
+            chat = Chats(session_id=user.id, model_name=model_name, title=message_text[:20])
+    db.session.add(chat)
+    db.session.commit()
+    
+    print(f"Chat created with id: {chat.id}")
+
+    if not user or not chat:
+        return emit('error', {'error': 'Invalid user or chat'})
+    
+    message = Messages(chat_id=chat.id, content=message_text, direction='SENT', sent_by=user.id)
+    masked_text, mapped_entity = get_prediction(message_text)
+    message.masked_content = masked_text
+    db.session.add(message)
+    db.session.commit()
+    res = {
+    'message': message_text, 
+    'masked_text': masked_text, 
+    'mapped_entity': mapped_entity
+    }
+
+    return jsonify(res), 201
+
 @socketio.on('send_message')
 def handle_send_message(data):
     print(f"Message received: {data.get('message')}")
