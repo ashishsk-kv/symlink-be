@@ -67,6 +67,58 @@ def handle_send_message(data):
 
     # Broadcast the message to the room
     emit('receive_message', reply.to_dict(), broadcast=True)
+
+
+@socketio.on('review_message')
+def review_message(data):
+    print(f"Message received: {data.get('message')}")
+    session_id = data.get('session_id')
+    message_text = data.get('message')
+    entity_map = data.get('entity_map')
+    chat_id = data.get('chat_id')
+    model_name = data.get('model_name')
+
+    if not session_id or not message_text:
+        return emit('error', {'error': 'Invalid data'})
+
+    # Get the user and room from the database
+    user = Sessions.query.filter_by(id=session_id).first()
+
+    if not chat_id:
+        chat = Chats(session_id=user.id, model_name=model_name, title=message_text[:20])
+    else:
+        chat = Chats.query.filter_by(id=chat_id).first()
+        if not chat:
+            chat = Chats(session_id=user.id, model_name=model_name, title=message_text[:20])
+    db.session.add(chat)
+    db.session.commit()
+    
+    print(f"Chat created with id: {chat.id}")
+
+    if not user or not chat:
+        return emit('error', {'error': 'Invalid user or chat'})
+
+    # Create the message in the database
+    message = Messages(chat_id=chat.id, content=message_text, direction='SENT', sent_by=user.id)
+    # masked_text, mapped_entity = get_prediction(message_text)
+    # message.masked_content = masked_text
+    db.session.add(message)
+    db.session.commit()
+
+    emit('receive_message', message.to_dict(), broadcast=True)
+    
+    # entity_key_map = map_keys(mapped_entity)
+
+    gpt_response = openai_util.query_chatgpt(message_text)
+
+    final_output = reverse_map(gpt_response, entity_map)
+
+    reply = Messages(chat_id=chat.id, content=final_output, direction='RECEIVED', sent_by='MODEL')
+    db.session.add(reply)
+    db.session.commit()
+
+    # Broadcast the message to the room
+    emit('receive_message', reply.to_dict(), broadcast=True)
     
 
 @socketio.on('get_history')
