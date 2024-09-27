@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Chat with History</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  </head>
+  <body>
+    <h1>Socket.IO Chat with Rooms and History</h1>
+
+    <div>
+      <input id="username" placeholder="Enter your username" />
+      <input id="room_name" placeholder="Enter room name" />
+      <button onclick="joinRoom()">Join Room</button>
+    </div>
+
+    <h2>Chat Room: <span id="current-room">None</span></h2>
+
+    <ul id="messages">
+      <li>Messages will appear here...</li>
+    </ul>
+
+    <input id="message" placeholder="Enter your message" />
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+      var socket = io("http://127.0.0.1:5000");
+
+      function joinRoom() {
+        var username = document.getElementById("username").value;
+        var room_name = document.getElementById("room_name").value;
+
+        if (username && room_name) {
+          socket.emit("join_room", {
+            username: username,
+            room_name: room_name,
+          });
+          document.getElementById("current-room").textContent = room_name;
+          document.getElementById("messages").innerHTML = ""; // Clear previous messages
+        }
+
+        socket.emit("get_history", {
+          chat_id: room_name,
+          session_id:
+            "26cc129d98187e7829712b767a0914919817f43aaf149c4689bad87c7ed00c9e",
+        });
+      }
+
+      function sendMessage() {
+        var username = document.getElementById("username").value;
+        var message = document.getElementById("message").value;
+        var room_name = document.getElementById("current-room").textContent;
+        if (message && username && room_name !== "None") {
+          console.log(username, " ", message, " ", room_name);
+          socket.emit("send_message", {
+            model_name: username,
+            message: message,
+            chat_id: room_name,
+            session_id:
+              "26cc129d98187e7829712b767a0914919817f43aaf149c4689bad87c7ed00c9e",
+          });
+          document.getElementById("message").value = "";
+        }
+      }
+
+      // Receive chat history when joining a room
+      socket.on("chat_history", function (messages) {
+        var messagesList = document.getElementById("messages");
+        messagesList.innerHTML = ""; // Clear the previous messages
+        console.log(JSON.stringify(messages));
+
+        messages.forEach(function (message) {
+          var li = document.createElement("li");
+          li.textContent = `${message.chat_id} (${message.send_date}): ${message.content}`;
+          messagesList.appendChild(li);
+        });
+      });
+
+      // Receive new messages in real time
+      socket.on("receive_message", function (data) {
+        console.log("Received message, ", JSON.stringify(data));
+        var li = document.createElement("li");
+        li.textContent = `${data.chat_id} (${data.send_date}): ${data.content}`;
+        document.getElementById("messages").appendChild(li);
+      });
+
+      // Notify when a user joins the room
+      socket.on("user_joined", function (data) {
+        var li = document.createElement("li");
+        li.textContent = `${data.username} has joined the room`;
+        document.getElementById("messages").appendChild(li);
+      });
+    </script>
+  </body>
+</html>
