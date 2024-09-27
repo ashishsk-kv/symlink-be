@@ -3,10 +3,10 @@ from openai import OpenAI
 # Set your OpenAI API key
 client = OpenAI(
     # This is the default and can be omitted
-    api_key='<key>',
+    api_key='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',
 )
 
-def query_chatgpt(prompt, model="gpt-4", max_tokens=500, temperature=0.7):
+def query_chatgpt(prompt, model="chatgpt-4o-latest", max_tokens=500, temperature=0.7):
     """
     Query ChatGPT using the OpenAI API.
 
